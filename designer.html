@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Store Designer</title>
+    <!-- Inter font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls for camera control -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            overflow: hidden;
+        }
+        #scene-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        /* Custom modal styles for a clean look */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: #060505;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .close-button {
+            color: hwb(0 14% 85%);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.75);
+            color: rgb(0, 0, 0);
+            padding: 10px 20px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 2000;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        /* ========= Dark theme (Aurevo-style) ========= */
+:root{
+  --bg-a:#0b1222;        /* deep navy */
+  --bg-b:#0f1d3a;        /* blue/indigo */
+  --panel:#0f172a;       /* slate-900 */
+  --card:#111827;        /* darker card */
+  --card-hover:#1f2937;  /* slate-800 */
+  --ring:#334155;        /* slate-700 */
+  --text:#e5e7eb;        /* gray-200 */
+  --muted:#94a3b8;       /* slate-400 */
+  --blue:#3b82f6;        /* blue-500 */
+  --blue-hover:#60a5fa;  /* blue-400 */
+  --green:#22c55e;       /* emerald-500 */
+  --green-hover:#34d399; /* emerald-400 */
+}
+
+/* Background & global text */
+body{
+  background: radial-gradient(1400px 700px at 10% -10%, var(--bg-b), var(--bg-a)) fixed;
+  color: var(--text);
+}
+
+/* Big canvas card */
+.dark-canvas{
+  background: #0f172a !important;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.35);
+  border: 1px solid var(--ring);
+}
+
+/* Right control panel */
+.control-panel{
+  background: rgba(15,23,42,.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--ring);
+  border-radius: 14px;
+  color: var(--text);
+}
+.control-panel h1, .control-panel h2 { color: var(--text); }
+.control-panel .text-gray-800, 
+.control-panel .text-gray-700 { color: var(--text) !important; }
+.control-panel .text-gray-500 { color: var(--muted) !important; }
+
+/* Item cards */
+.add-item-btn{
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--ring);
+  border-radius: 12px;
+}
+.add-item-btn:hover{ background: var(--card-hover); }
+.add-item-btn svg{ color: var(--text); fill: currentColor; stroke: currentColor; }
+
+/* Selected item panel */
+#object-info-panel{
+  background: var(--card);
+  border: 1px solid var(--ring);
+}
+input[type="color"],
+input[type="range"]{
+  background: #1f2937;
+  border: 1px solid var(--ring);
+  color: var(--text);
+}
+
+/* Buttons */
+#render-btn{ background: var(--blue); }
+#render-btn:hover{ background: var(--blue-hover); }
+#save-btn{ background: var(--green); }
+#save-btn:hover{ background: var(--green-hover); }
+#share-btn{ background: var(--blue); }
+#share-btn:hover{ background: var(--blue-hover); }
+
+/* Modal & toast */
+.modal-content{ background: #0b1324; color: var(--text); }
+.toast{ background: rgba(15,23,42,.92); color:#fff; }
+/* Force dark cards even if Tailwind bg-* classes are present */
+.add-item-btn{
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--ring) !important;
+  border-radius: 12px;
+}
+.add-item-btn:hover{ background: var(--card-hover) !important; }
+
+/* Make icons follow the text color even if paths have fill set */
+.add-item-btn svg,
+.add-item-btn svg *{
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Ensure action buttons stay colored in the dark panel */
+#render-btn, #save-btn, #share-btn{ color:#fff !important; }
+
+    </style>
+    <header class="fixed top-0 left-0 w-full z-50 py-4 px-8 flex justify-between items-center bg-transparent">
+    <div class="text-2xl md:text-3xl font-extrabold tracking-tight uppercase">Aurevo</div>
+    <nav class="hidden md:flex space-x-8">
+      <a href="index.html" class="hover:text-blue-400">Home</a>
+      <a href="about.html" class="hover:text-blue-400">About</a>
+      <a href="industry.html" class="hover:text-blue-400">Industries</a>
+      <a href="projects.html" class="hover:text-blue-400">My Projects</a>
+      <a href="designer.html" class="hover:text-blue-400">Designer</a>
+      <a href="vision.html" class="hover:text-blue-400">Aurevo Vision</a>
+      <a href="results.html" class="hover:text-blue-400">Results</a>
+      <a href="contact.html" class="hover:text-blue-400">Contact</a>
+    </nav>
+  </header>  
+</head>
+<body class="h-screen w-screen flex flex-col lg:flex-row">
+
+    <!-- Main 3D canvas container -->
+    <div id="canvas-container" class="flex-1 relative dark-canvas">
+
+        <canvas id="scene-canvas" class="z-0"></canvas>
+         </div>
+
+    <!-- Right-side control panel -->
+    <div class="w-full lg:w-96 control-panel p-6 shadow-lg overflow-y-auto">
+
+        <h1 class="text-2xl font-bold mb-2 text-gray-800">Store Designer</h1>
+        <p id="user-info" class="text-sm text-gray-500 mb-4"></p>
+
+        <!-- Action Buttons -->
+        <div class="flex space-x-2 mb-6">
+            <button id="render-btn" class="flex-1 py-2 px-4 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200">Render</button>
+            <button id="save-btn" class="flex-1 py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200">Save</button>
+            <button id="share-btn" class="flex-1 py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200">Share</button>
+        </div>
+
+        <!-- Selected Object Info Panel -->
+        <div id="object-info-panel" class="mb-6 hidden bg-gray-100 p-4 rounded-lg">
+            <h2 class="text-lg font-semibold mb-2 text-gray-700">Selected Item</h2>
+            <div id="selected-item-name" class="font-medium text-gray-600 mb-4"></div>
+            
+            <label for="color-picker" class="block text-sm font-medium text-gray-700">Color</label>
+            <input type="color" id="color-picker" class="mt-1 block w-full h-10 border border-gray-300 rounded-lg">
+
+            <label for="scale-x-slider" class="block text-sm font-medium text-gray-700 mt-4">Scale X</label>
+            <input type="range" id="scale-x-slider" min="0.5" max="2" step="0.1" value="1" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+
+            <label for="scale-y-slider" class="block text-sm font-medium text-gray-700 mt-4">Scale Y</label>
+            <input type="range" id="scale-y-slider" min="0.5" max="2" step="0.1" value="1" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+
+            <label for="rotation-slider" class="block text-sm font-medium text-gray-700 mt-4">Rotation</label>
+            <input type="range" id="rotation-slider" min="0" max="360" step="1" value="0" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+            <label for="pos-y-slider" class="block text-sm font-medium text-gray-700 mt-4">Height (Y)</label>
+            <input type="range" id="pos-y-slider" min="-1" max="3" step="0.01" value="0"
+            class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+
+
+            <div class="mt-4">
+                <span class="block text-sm font-medium text-gray-700">Texture</span>
+                <div class="flex space-x-2 mt-2">
+                    <button data-texture="wood" class="texture-btn w-12 h-12 bg-gray-700 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors duration-200"></button>
+                    <button data-texture="metal" class="texture-btn w-12 h-12 bg-gray-400 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors duration-200"></button>
+                    <button data-texture="fabric" class="texture-btn w-12 h-12 bg-pink-300 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors duration-200"></button>
+                </div>
+            </div>
+
+            <button id="delete-btn" class="w-full mt-4 py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200">Delete Item</button>
+
+        </div>
+
+        <!-- Saved Designs Section -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">Saved Designs</h2>
+            <ul id="saved-designs-list" class="space-y-2">
+                <!-- Saved designs will be dynamically added here -->
+                <li class="text-sm text-gray-500">Loading designs...</li>
+            </ul>
+        </div>
+
+        <!-- Furniture Section -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">Furniture & Fixtures</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <button data-item="shelf" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M120-40v-880h60v80h600v-80h60v880h-60v-80H180v80h-60Zm60-469h110v-160h220v160h270v-271H180v271Zm0 329h270v-160h220v160h110v-269H180v269Zm170-329h100v-100H350v100Zm160 329h100v-100H510v100ZM350-509h100-100Zm160 329h100-100Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Shelf</span>
+                </button>
+                <button data-item="rack" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M110-160q-13 0-21.5-8.5T80-190q0-7 3-13t9-11l358-281v-55q0-12 8.5-21t20.5-9q34 0 57.5-23.5T560-661q0-33-23.5-56T480-740q-33 0-56.5 23.5T400-660h-60q0-58 41-99t99-41q58 0 99 40.5t41 98.5q0 49-31 86.5T510-523v28l358 281q6 5 9 11t3 13q0 13-8.5 21.5T850-160H110Zm90-60h560L480-443 200-220Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Rack</span>
+                </button>
+                <button data-item="counter" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M260-630q-24.75 0-42.37-17.63Q200-665.25 200-690v-130q0-24.75 17.63-42.38Q235.25-880 260-880h440q24.75 0 42.38 17.62Q760-844.75 760-820v130q0 24.75-17.62 42.37Q724.75-630 700-630H260Zm0-60h440v-130H260v130ZM140-80q-24.75 0-42.37-17.63Q80-115.25 80-140v-70h800v70q0 24.75-17.62 42.37Q844.75-80 820-80H140ZM80-240l145-324q8-16 22.6-26 14.61-10 31.4-10h402q16.79 0 31.4 10 14.6 10 22.6 26l145 324H80Zm260-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm120 160h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm120 160h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Counter</span>
+                </button>
+                <button data-item="mannequin" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M420-80v-280h-80v-253q0-24.75 17.63-42.38Q375.25-673 400-673h160q24.75 0 42.38 17.62Q620-637.75 620-613v253h-80v280H420Zm60.08-654q-30.08 0-51.58-21.42t-21.5-51.5q0-30.08 21.42-51.58t51.5-21.5q30.08 0 51.58 21.42t21.5 51.5q0 30.08-21.42 51.58t-51.5 21.5Z"/></svg>
+                    <span class="text-sm font-medium text-gray-700">Mannequin</span>
+                </button>
+                <button data-item="table" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#666666"><path d="M155-586.67h649.33L763-733.33H198l-43 146.66ZM480-660Zm205.33 140H275.67l-13 93.33h434.66l-12-93.33ZM160-160l49-360h-89q-20 0-31.5-16T82-571l57-200q4-13 14-21t24-8h606q14 0 24 8t14 21l57 200q5 19-6.5 35T840-520h-88l48 360h-66.67l-27-200H253.67l-27 200H160Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Table</span>
+                </button>
+                <button data-item="chair" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M200-120v-308q0-26 17-43t43-17h60v-90h-60q-26 0-43-17t-17-43v-142q0-26 17-43t43-17h440q26 0 43 17t17 43v142q0 26-17 43t-43 17h-60v90h60q26 0 43 17t17 43v308h-60v-122H260v122h-60Zm60-518h440v-142H260v142Zm120 150h200v-90H380v90ZM260-302h440v-126H260v126Zm0-336v-142 142Zm0 336v-126 126Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Chair</span>
+                </button>
+                <button data-item="vase" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="m280-400 200-201 200 201H280Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Vase</span>
+                </button>
+                <button data-item="sofa" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                   <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M193-120q-12 0-21-9t-9-21v-42h-13q-45.83 0-77.92-32.08Q40-256.17 40-302v-244q0-51 31-77.5t73-26.5v-86q0-46 29-75t75-29h465q46 0 74.5 29t28.5 75v86q42 0 73 26.5t31 77.5v244q0 45.83-32.08 77.92Q855.83-192 810-192h-13v42q0 12-9 21t-21 9q-12 0-21-9t-9-21v-42H223v42q0 12-9 21t-21 9Zm-43-132h660q20 0 35-15t15-35v-244q0-20-12-32t-32-12q-20 0-32 12t-12 32v176H188v-176q0-20-12-32t-32-12q-20 0-32 12t-12 32v244q0 20 15 35t35 15Zm98-178h464v-116q0-31 14-51.5t30-32.5v-106q0-20-12-32t-31.74-12H247.74Q228-780 216-768t-12 32v106q16 12 30 32.5t14 51.5v116Zm232 0Zm0 178Zm0-118Z"/>
+                   </svg>
+                    <span class="text-sm font-medium text-gray-700">Sofa</span>
+                </button>
+                <button data-item="bench" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#666666"><path d="M386.67-676h186.66l14.61-41.33H734v-7.34q0-36.57-26.44-62.62-26.43-26.04-63.56-26.04H315.33q-37.12 0-63.56 26.04-26.44 26.05-26.44 62.62v7.34H372L386.67-676ZM282-80v-48.67q37.33-26.33 78.5-40 41.17-13.66 86.17-17.33v-97.33H323.33V-350h123.34v-259.33h-69.34q-20.66 0-33.33-11.84-12.67-11.83-19.2-29.5h-91.47q-29.33 0-51.33-19.5t-22-49.5q0-67.05 44.33-113.69 44.34-46.64 111-46.64H644q66.67 0 111.33 46.64Q800-786.72 800-719.67q0 30-22 49.5t-52 19.5h-91.47q-6.53 17-18.86 29.17-12.34 12.17-33 12.17h-69.34V-350H636v66.67H513.33V-186q44.34 3.67 85.84 17.33 41.5 13.67 78.16 40V-80H282Zm104.67-596h186.66-186.66Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Bench</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Merchandise Section -->
+        <div>
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">Merchandise</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <button data-item="shirt" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="m250-569-63 35q-14 8-29.5 4.5T136-546L67-665q-8-14-4.5-24T79-707l228-133h64q11 0 17.5 6.5T395-816v15q0 38 24 62t62 24q38 0 61.5-24t23.5-62v-15q0-11 6.5-17.5T590-840h64l228 133q13 8 16 18t-4 24l-70 119q-6 13-25 17t-30-3l-62-39v412q0 16-12 27.5T667-120H289q-16 0-27.5-11.5T250-159v-410Zm60-102v491h337v-491l138 77 45-78-187-107h-18q-8 54-47.5 89T481-655q-57 0-97-35t-48-89h-18L131-672l45 78 134-77Zm171 191Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Shirt</span>
+                </button>
+                <button data-item="laptop" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M57-160q-23.51 0-40.26-17.63Q0-195.25 0-220h141q-24 0-42-18t-18-42v-500q0-24 18-42t42-18h678q24 0 42 18t18 42v500q0 24-18 42t-42 18h141q0 25-17.62 42.5Q924.75-160 900-160H57Zm423-22q14.45 0 24.23-9.77Q514-201.55 514-216q0-14.45-9.77-24.23Q494.45-250 480-250q-14.45 0-24.23 9.77Q446-230.45 446-216q0 14.45 9.77 24.23Q465.55-182 480-182Zm-339-98h678v-500H141v500Zm0 0v-500 500Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Laptop</span>
+                </button>
+                <button data-item="television" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#666666"><path d="M326.67-120v-80h-180q-27 0-46.84-19.83Q80-239.67 80-266.67v-506.66q0-27 19.83-46.84Q119.67-840 146.67-840h666.66q27 0 46.84 19.83Q880-800.33 880-773.33v506.66q0 27-19.83 46.84Q840.33-200 813.33-200h-180v80H326.67Zm-180-146.67h666.66v-506.66H146.67v506.66Zm0 0v-506.66 506.66Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Television</span>
+                </button>
+                <button data-item="perfume" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M562.5-655q-12.5 0-21-9t-8.5-21.5q0-12.5 8.63-21 8.62-8.5 21.37-8.5 12 0 21 8.62 9 8.63 9 21.38 0 12-9 21t-21.5 9Zm247.5 0q-12 0-21-9t-9-21.5q0-12.5 9-21t21.5-8.5q12.5 0 21 8.62 8.5 8.63 8.5 21.38 0 12-8.62 21-8.63 9-21.38 9Zm-123.5-83q-12.5 0-21-8.63-8.5-8.62-8.5-21.37 0-12 8.63-21 8.62-9 21.37-9 12 0 21 9t9 21.5q0 12.5-9 21t-21.5 8.5ZM810-820q-12 0-21-8.63-9-8.62-9-21.37 0-12 9-21t21.5-9q12.5 0 21 9t8.5 21.5q0 12.5-8.62 21-8.63 8.5-21.38 8.5ZM686.5-573q-12.5 0-21-8.63-8.5-8.62-8.5-21.37 0-12 8.63-21 8.62-9 21.37-9 12 0 21 9t9 21.5q0 12.5-9 21t-21.5 8.5ZM810-491q-12 0-21-8.63-9-8.62-9-21.37 0-12 9-21t21.5-9q12.5 0 21 9t8.5 21.5q0 12.5-8.62 21-8.63 8.5-21.38 8.5ZM180-180h270v-363H180v363Zm-60 60v-423q0-24.75 17.63-42.38Q155.25-603 180-603h270q24.75 0 42.38 17.62Q510-567.75 510-543v423H120Zm83-483v-177q0-24.75 17.63-42.38Q238.25-840 263-840h165v237h-60v-177H263v177h-60Zm-23 423h270-270Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Perfume</span>
+                </button>
+                <button data-item="beautyitem" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M660-40q-8.5 0-14.25-5.75T640-60q0-8.5 5.75-14.25T660-80h140v-60H660q-8.5 0-14.25-5.75T640-160q0-8.5 5.75-14.25T660-180h140v-60H660q-8.5 0-14.25-5.75T640-260q0-8.5 5.75-14.25T660-280h140v-60H660q-8.5 0-14.25-5.75T640-360q0-8.5 5.75-14.25T660-380h140v-60H660q-8.5 0-14.25-5.75T640-460q0-8.5 5.75-14.25T660-480h140v-60H660q-8.5 0-14.25-5.75T640-560q0-8.5 5.75-14.25T660-580h160q24.75 0 42.38 17.62Q880-544.75 880-520v420q0 24.75-17.62 42.37Q844.75-40 820-40H660ZM319.82-340Q394-340 447-410.87t53-169Q500-678 447.18-749q-52.83-71-127-71Q246-820 193-749.13t-53 169Q140-482 192.82-411q52.83 71 127 71ZM320-40q-39 0-63.5-29T237-136l17-155q-76-27-125-106.5T80-580q0-125 70-212.5T320-880q100 0 170 87.5T560-580q0 103-49.5 182.5T385-291l18 155q5 38-19.5 67T320-40Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Beauty Item</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Lighting Section -->
+        <div>
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">Lighting</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <button data-item="pendantlight" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#666666"><path d="M480-120q-64 0-108.67-44.67-44.66-44.66-44.66-108.66h-140q-27 0-46.84-19.84Q120-313 120-340q0-148 93-252.5t233.67-116.83V-840h66.66v130.67Q654-697 747-592.5T840-340q0 27-19.83 46.83-19.84 19.84-46.84 19.84h-140q0 64-44.66 108.66Q544-120 480-120ZM186.67-340h586.66q0-126.67-85.66-215Q602-643.33 480-643.33q-122 0-207.67 88.33-85.66 88.33-85.66 215ZM480-186.67q36.33 0 61.5-25.16 25.17-25.17 25.17-61.5H393.33q0 36.33 25.17 61.5 25.17 25.16 61.5 25.16Zm0-86.66Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Pendant Light</span>
+                </button>
+                <button data-item="spotlight" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M40-450v-60h232v60H40Zm271-157-80-80 42-42 80 80-42 42Zm139-81v-232h60v232h-60Zm199 81-42-42 80-80 42 42-80 80Zm39 157v-60h232v60H688Zm-208 72q-42.5 0-72.25-29.75T378-480q0-42.5 29.75-72.25T480-582q42.5 0 72.25 29.75T582-480q0 42.5-29.75 72.25T480-378Zm212 152-85-85 42-42 85 85-42 42Zm-424 0-42-42 85-85 42 42-85 85ZM450-40v-232h60v232h-60Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Spotlight</span>
+                </button>
+                <button data-item="tracklight" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M450-80v-118h60v118h-60ZM80-450v-60h118v60H80Zm682 0v-60h118v60H762Zm-23 272-82-82 43-43 82 82-43 43Zm-518 0-43-43 82-82 43 43-82 82Zm259-120q-75 0-128.5-53.5T298-480q0-49 21-88t59-64v-208h204v208q38 25 59 64t21 88q0 75-53.5 128.5T480-298Zm-42-355q10.5-3 21-4.5t21-1.5q10.5 0 21 1.5t21 4.5v-127h-84v127Zm42.12 295q50.88 0 86.38-35.62 35.5-35.62 35.5-86.5t-35.62-86.38q-35.62-35.5-86.5-35.5t-86.38 35.62q-35.5 35.62-35.5 86.5t35.62 86.38q35.62 35.5 86.5 35.5ZM480-480Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Track Light</span>
+                </button>
+                <button data-item="floorlamp" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M450-200v-320H227q-15.45 0-24.73-12.5Q193-545 198-559l86-279q6.11-18.75 22.13-30.38Q322.16-880 342-880h276q19.84 0 35.87 11.62Q669.89-856.75 676-838l86 279q5 14-4.27 26.5Q748.45-520 733-520H510v320h-60ZM267-580h426l-74-240H341l-74 240Zm63 500v-60h300v60H330Zm150-620Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Floor Lamp</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Structural Section -->
+        <div>
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">Structural</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <button data-item="wall" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M80-160v-640h800v640H80Zm60-60h680v-520H140v520Zm0 0v-520 520Z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">Wall</span>
+                </button>
+                <button data-item="floor" class="add-item-btn flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 -960 960 960" width="48px" fill="#666666"><path d="M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h600q24 0 42 18t18 42v600q0 24-18 42t-42 18H180Zm0-60h600v-600H180v600Zm0 0v-600 600Z"/></svg>
+                    <span class="text-sm font-medium text-gray-700">Floor</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Share/Render and confirmation -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <div id="modal-body" class="text-center"></div>
+        </div>
+    </div>
+    
+    <!-- Toast Message for user feedback -->
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, updateDoc, getDocs, addDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Set up the scene, camera, and renderer.
+        let scene, camera, renderer, controls;
+        let selectedObject = null;
+        let objects = [];
+        let raycaster, mouse;
+        let isDragging = false;
+        let dragPlane = null;
+        let offset = new THREE.Vector3();
+        let db, auth, userId;
+        let currentDesignDocId = null;
+
+        // HTML elements
+        const canvas = document.getElementById('scene-canvas');
+        const objectInfoPanel = document.getElementById('object-info-panel');
+        const selectedItemName = document.getElementById('selected-item-name');
+        const colorPicker = document.getElementById('color-picker');
+        const scaleXSlider = document.getElementById('scale-x-slider');
+        const scaleYSlider = document.getElementById('scale-y-slider');
+        const rotationSlider = document.getElementById('rotation-slider');
+        const posYSlider = document.getElementById('pos-y-slider');
+        const textureBtns = document.querySelectorAll('.texture-btn');
+        const modal = document.getElementById('modal');
+        const modalBody = document.getElementById('modal-body');
+        const closeBtn = document.querySelector('.close-button');
+        const deleteBtn = document.getElementById('delete-btn');
+        const savedDesignsList = document.getElementById('saved-designs-list');
+        const toast = document.getElementById('toast');
+        const userInfo = document.getElementById('user-info');
+
+        // Texture URLs - Using placeholders
+        const textures = {
+            wood: 'https://placehold.co/128x128/964B00/ffffff?text=Wood',
+            metal: 'https://placehold.co/128x128/808080/ffffff?text=Metal',
+            fabric: 'https://placehold.co/128x128/E3B4B9/ffffff?text=Fabric'
+        };
+
+        // Initialize the scene
+        async function init() {
+            // Initialize Firebase
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('Debug');
+                
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                auth.onAuthStateChanged(user => {
+                    if (user) {
+                        userId = user.uid;
+                        userInfo.textContent = `User ID: ${userId}`;
+                        setupFirestoreListeners();
+                    } else {
+                        userInfo.textContent = 'User ID: N/A';
+                    }
+                });
+
+            } catch (e) {
+                showToast("Firebase initialization failed. Check your configuration.");
+                console.error("Firebase init failed: ", e);
+            }
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // Floor
+            const planeGeometry = new THREE.PlaneGeometry(20, 20);
+            const planeMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+            plane.rotation.x = -Math.PI / 2;
+            plane.receiveShadow = true;
+            scene.add(plane);
+            dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // A plane at y=0 for dragging
+
+            // Raycaster setup
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Handle window resizing
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Add event listeners for the control panel
+            setupEventListeners();
+        }
+
+        function setupFirestoreListeners() {
+            // Listen for changes to the list of public designs
+            const designsRef = collection(db, `/artifacts/${appId}/public/data/designs`);
+            onSnapshot(designsRef, (snapshot) => {
+                savedDesignsList.innerHTML = '';
+                if (snapshot.empty) {
+                    savedDesignsList.innerHTML = '<li class="text-sm text-gray-500">No saved designs yet.</li>';
+                    return;
+                }
+                snapshot.forEach(doc => {
+                    const design = doc.data();
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `
+                        <button class="w-full text-left p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200" data-doc-id="${doc.id}">
+                            ${design.name}
+                        </button>
+                    `;
+                    listItem.querySelector('button').addEventListener('click', () => {
+                        showConfirmationModal(`Are you sure you want to load "${design.name}"? All current items will be deleted.`, () => loadDesign(doc.id));
+                    });
+                    savedDesignsList.appendChild(listItem);
+                });
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Object creation functions
+        function createShelf(data = {}) {
+            const shelf = new THREE.Group();
+            shelf.name = 'Shelf';
+            
+            // Main shelf body
+            const bodyGeometry = new THREE.BoxGeometry(3, 0.2, 1);
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8b4513 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 1;
+            body.castShadow = true;
+            shelf.add(body);
+
+            // Legs
+            const legGeometry = new THREE.BoxGeometry(0.1, 1, 0.1);
+            const legMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8b4513 });
+            const leg1 = new THREE.Mesh(legGeometry, legMaterial);
+            leg1.position.set(1.4, 0.5, 0.4);
+            leg1.castShadow = true;
+            shelf.add(leg1);
+            
+            const leg2 = new THREE.Mesh(legGeometry, legMaterial);
+            leg2.position.set(-1.4, 0.5, 0.4);
+            leg2.castShadow = true;
+            shelf.add(leg2);
+
+            const leg3 = new THREE.Mesh(legGeometry, legMaterial);
+            leg3.position.set(1.4, 0.5, -0.4);
+            leg3.castShadow = true;
+            shelf.add(leg3);
+
+            const leg4 = new THREE.Mesh(legGeometry, legMaterial);
+            leg4.position.set(-1.4, 0.5, -0.4);
+            leg4.castShadow = true;
+            shelf.add(leg4);
+
+            return shelf;
+        }
+
+        function createRack(data = {}) {
+            const rack = new THREE.Group();
+            rack.name = 'Clothing Rack';
+            
+            const baseGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2, 32);
+            const baseMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x808080 });
+            const pole1 = new THREE.Mesh(baseGeometry, baseMaterial);
+            pole1.position.set(1, 1, 0);
+            pole1.castShadow = true;
+            rack.add(pole1);
+            
+            const pole2 = new THREE.Mesh(baseGeometry, baseMaterial);
+            pole2.position.set(-1, 1, 0);
+            pole2.castShadow = true;
+            rack.add(pole2);
+            
+            const railGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2.2, 32);
+            const railMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x808080 });
+            const rail = new THREE.Mesh(railGeometry, railMaterial);
+            rail.rotation.z = Math.PI / 2;
+            rail.position.y = 2;
+            rail.castShadow = true;
+            rack.add(rail);
+
+            return rack;
+        }
+
+        function createCounter(data = {}) {
+            const counter = new THREE.Group();
+            counter.name = 'Counter';
+            const counterGeometry = new THREE.BoxGeometry(3, 1, 1.5);
+            const counterMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8b4513 });
+            const counterMesh = new THREE.Mesh(counterGeometry, counterMaterial);
+            counterMesh.castShadow = true;
+            counter.add(counterMesh);
+            return counter;
+        }
+
+        function createMannequin(data = {}) {
+            const mannequin = new THREE.Group();
+            mannequin.name = 'Mannequin';
+            const material = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0xf5e8d9 });
+
+            // Torso
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.3), material);
+            torso.position.y = 1.25;
+            mannequin.add(torso);
+            
+            // Head
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), material);
+            head.position.y = 1.9;
+            mannequin.add(head);
+
+            // Legs
+            const legGeometry = new THREE.BoxGeometry(0.2, 1, 0.2);
+            const leftLeg = new THREE.Mesh(legGeometry, material);
+            leftLeg.position.set(-0.15, 0.2, 0);
+            mannequin.add(leftLeg);
+            const rightLeg = new THREE.Mesh(legGeometry, material);
+            rightLeg.position.set(0.15, 0.2, 0);
+            mannequin.add(rightLeg);
+            
+            return mannequin;
+        }
+
+        function createShirt(data = {}) {
+  const shirt = new THREE.Group();
+  shirt.name = 'Shirt';
+
+  const color = data.color ? new THREE.Color(data.color) : 0xadd8e6;
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.85,
+    metalness: 0.05
+  });
+
+  // Dimensions
+  const depth     = 0.22;  // thickness
+  const torsoW    = 1.3;
+  const torsoH    = 1.6;
+  const sleeveW   = 2.2;   // full bar width (tip to tip)
+  const sleeveH   = 0.5;
+
+  // Torso (positioned so bottom sits on floor)
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(torsoW, torsoH, depth), material);
+  torso.position.y = torsoH / 2;
+  torso.castShadow = true;
+  shirt.add(torso);
+
+  // Sleeve bar (placed near top to form a 'T')
+  const sleeves = new THREE.Mesh(new THREE.BoxGeometry(sleeveW, sleeveH, depth), material);
+  sleeves.position.y = torsoH - sleeveH / 2;
+  sleeves.castShadow = true;
+  shirt.add(sleeves);
+
+  // If you want it floating like before, uncomment:
+  // shirt.position.y = 1.5;
+
+  return shirt;
+}
+
+        function createLaptop(data = {}) {
+            const laptop = new THREE.Group();
+            laptop.name = 'Laptop';
+            
+            // Base
+            const baseGeometry = new THREE.BoxGeometry(1.5, 0.1, 1);
+            const baseMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x333333 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = 0.05;
+            base.castShadow = true;
+            laptop.add(base);
+
+            // Screen
+            const screenGeometry = new THREE.BoxGeometry(1.5, 1, 0.1);
+            const screenMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x222222 });
+            const screen = new THREE.Mesh(screenGeometry, screenMaterial);
+            screen.position.set(0, 0.6, -0.5);
+            screen.rotation.x = Math.PI / 4;
+            screen.castShadow = true;
+            laptop.add(screen);
+
+            laptop.position.y = 0.5;
+
+            return laptop;
+        }
+        
+        // New functions for new items
+        function createTable(data = {}) {
+            const table = new THREE.Group();
+            table.name = 'Table';
+
+            // Table top
+            const topGeometry = new THREE.BoxGeometry(3, 0.1, 2);
+            const topMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x964B00 });
+            const top = new THREE.Mesh(topGeometry, topMaterial);
+            top.position.y = 1;
+            top.castShadow = true;
+            table.add(top);
+
+            // Table legs
+            const legGeometry = new THREE.BoxGeometry(0.2, 1, 0.2);
+            const legMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x964B00 });
+            const leg1 = new THREE.Mesh(legGeometry, legMaterial);
+            leg1.position.set(1.4, 0.5, 0.9);
+            leg1.castShadow = true;
+            table.add(leg1);
+            const leg2 = new THREE.Mesh(legGeometry, legMaterial);
+            leg2.position.set(-1.4, 0.5, 0.9);
+            leg2.castShadow = true;
+            table.add(leg2);
+            const leg3 = new THREE.Mesh(legGeometry, legMaterial);
+            leg3.position.set(1.4, 0.5, -0.9);
+            leg3.castShadow = true;
+            table.add(leg3);
+            const leg4 = new THREE.Mesh(legGeometry, legMaterial);
+            leg4.position.set(-1.4, 0.5, -0.9);
+            leg4.castShadow = true;
+            table.add(leg4);
+
+            return table;
+        }
+        
+        function createChair(data = {}) {
+            const chair = new THREE.Group();
+            chair.name = 'Chair';
+
+            // Seat
+            const seatGeometry = new THREE.BoxGeometry(1, 0.1, 1);
+            const seatMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8B4513 });
+            const seat = new THREE.Mesh(seatGeometry, seatMaterial);
+            seat.position.y = 0.5;
+            seat.castShadow = true;
+            chair.add(seat);
+
+            // Backrest
+            const backrestGeometry = new THREE.BoxGeometry(1, 1, 0.1);
+            const backrestMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8B4513 });
+            const backrest = new THREE.Mesh(backrestGeometry, backrestMaterial);
+            backrest.position.set(0, 1, -0.45);
+            backrest.castShadow = true;
+            chair.add(backrest);
+
+            // Legs
+            const legGeometry = new THREE.BoxGeometry(0.1, 0.5, 0.1);
+            const legMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8B4513 });
+            const leg1 = new THREE.Mesh(legGeometry, legMaterial);
+            leg1.position.set(0.4, 0.25, 0.4);
+            leg1.castShadow = true;
+            chair.add(leg1);
+            const leg2 = new THREE.Mesh(legGeometry, legMaterial);
+            leg2.position.set(-0.4, 0.25, 0.4);
+            leg2.castShadow = true;
+            chair.add(leg2);
+            const leg3 = new THREE.Mesh(legGeometry, legMaterial);
+            leg3.position.set(0.4, 0.25, -0.4);
+            leg3.castShadow = true;
+            chair.add(leg3);
+            const leg4 = new THREE.Mesh(legGeometry, legMaterial);
+            leg4.position.set(-0.4, 0.25, -0.4);
+            leg4.castShadow = true;
+            chair.add(leg4);
+
+            return chair;
+        }
+        
+        function createVase(data = {}) {
+            const vase = new THREE.Group();
+            vase.name = 'Vase';
+
+            const vaseGeometry = new THREE.CylinderGeometry(0.3, 0.5, 1, 32);
+            const vaseMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0xadd8e6 });
+            const vaseMesh = new THREE.Mesh(vaseGeometry, vaseMaterial);
+            vaseMesh.position.y = 0.5;
+            vaseMesh.castShadow = true;
+            vase.add(vaseMesh);
+
+            return vase;
+        }
+
+        function createTelevision(data = {}) {
+            const television = new THREE.Group();
+            television.name = 'Television';
+
+            // Screen
+            const screenGeometry = new THREE.BoxGeometry(2.5, 1.5, 0.1);
+            const screenMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x000000 });
+            const screen = new THREE.Mesh(screenGeometry, screenMaterial);
+            screen.position.y = 1;
+            screen.castShadow = true;
+            television.add(screen);
+
+            // Stand
+            const standGeometry = new THREE.BoxGeometry(1.5, 0.2, 0.2);
+            const standMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x333333 });
+            const stand = new THREE.Mesh(standGeometry, standMaterial);
+            stand.position.y = 0.4;
+            stand.castShadow = true;
+            television.add(stand);
+
+            return television;
+        }
+        
+        function createPerfume(data = {}) {
+            const perfume = new THREE.Group();
+            perfume.name = 'Perfume';
+
+            const bottleBodyGeometry = new THREE.BoxGeometry(0.5, 1.2, 0.2);
+            const bottleBodyMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0xadd8e6 });
+            const bottleBody = new THREE.Mesh(bottleBodyGeometry, bottleBodyMaterial);
+            bottleBody.castShadow = true;
+            perfume.add(bottleBody);
+
+            const capGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 16);
+            const capMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            const cap = new THREE.Mesh(capGeometry, capMaterial);
+            cap.position.y = 0.75;
+            cap.castShadow = true;
+            perfume.add(cap);
+
+            return perfume;
+        }
+        
+        function createBeautyItem(data = {}) {
+            const beautyItem = new THREE.Group();
+            beautyItem.name = 'Beauty Item';
+            const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            const material = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0xffa07a });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            beautyItem.add(mesh);
+            return beautyItem;
+        }
+        
+        function createPendantLight(data = {}) {
+            const light = new THREE.Group();
+            light.name = 'Pendant Light';
+
+            const wireGeometry = new THREE.CylinderGeometry(0.02, 0.02, 2, 8);
+            const wireMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const wire = new THREE.Mesh(wireGeometry, wireMaterial);
+            wire.position.y = 1;
+            light.add(wire);
+
+            const shadeGeometry = new THREE.ConeGeometry(0.5, 0.5, 32);
+            const shadeMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0xeeeeee, side: THREE.DoubleSide });
+            const shade = new THREE.Mesh(shadeGeometry, shadeMaterial);
+            shade.position.y = -0.25;
+            light.add(shade);
+
+            const bulbLight = new THREE.PointLight(0xffffbb, 1, 100);
+            bulbLight.position.y = -0.4;
+            light.add(bulbLight);
+
+            light.position.y = 2.5;
+
+            return light;
+        }
+
+        function createSpotlight(data = {}) {
+            const light = new THREE.Group();
+            light.name = 'Spotlight';
+
+            const bodyGeometry = new THREE.CylinderGeometry(0.1, 0.2, 0.5, 16);
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x555555 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.25;
+            light.add(body);
+
+            const spotLight = new THREE.SpotLight(0xffffbb, 1);
+            spotLight.position.y = 0.5;
+            spotLight.target.position.set(0, -1, 0);
+            light.add(spotLight.target);
+            light.add(spotLight);
+
+            return light;
+        }
+
+        function createTrackLight(data = {}) {
+            const light = new THREE.Group();
+            light.name = 'Track Light';
+
+            const trackGeometry = new THREE.BoxGeometry(3, 0.1, 0.1);
+            const trackMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x888888 });
+            const track = new THREE.Mesh(trackGeometry, trackMaterial);
+            light.add(track);
+
+            for (let i = -1; i <= 1; i += 1) {
+                const bulbGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+                const bulbMaterial = new THREE.MeshBasicMaterial({ color: 0xffffbb });
+                const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+                bulb.position.x = i * 0.8;
+                bulb.position.y = -0.2;
+                light.add(bulb);
+            }
+
+            light.position.y = 2.5;
+
+            return light;
+        }
+
+        function createFloorLamp(data = {}) {
+            const lamp = new THREE.Group();
+            lamp.name = 'Floor Lamp';
+
+            const baseGeometry = new THREE.CylinderGeometry(0.4, 0.5, 0.2, 32);
+            const baseMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x555555 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            lamp.add(base);
+
+            const standGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5, 16);
+            const standMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x888888 });
+            const stand = new THREE.Mesh(standGeometry, standMaterial);
+            stand.position.y = 0.85;
+            lamp.add(stand);
+
+            const shadeGeometry = new THREE.CylinderGeometry(0.4, 0.6, 0.5, 32);
+            const shadeMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0xeeeeee });
+            const shade = new THREE.Mesh(shadeGeometry, shadeMaterial);
+            shade.position.y = 1.8;
+            lamp.add(shade);
+
+            const lightBulb = new THREE.PointLight(0xffffbb, 1, 50);
+            lightBulb.position.y = 1.8;
+            lamp.add(lightBulb);
+
+            return lamp;
+        }
+        
+        function createSofa(data = {}) {
+            const sofa = new THREE.Group();
+            sofa.name = 'Sofa';
+
+            const mainBody = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 1), new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8b4513 }));
+            mainBody.castShadow = true;
+            sofa.add(mainBody);
+
+            const backrest = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 0.2), new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8b4513 }));
+            backrest.position.set(0, 0.65, -0.4);
+            backrest.castShadow = true;
+            sofa.add(backrest);
+
+            const armrest1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 1), new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8b4513 }));
+            armrest1.position.set(0.9, 0.2, 0);
+            armrest1.castShadow = true;
+            sofa.add(armrest1);
+
+            const armrest2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 1), new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8b4513 }));
+            armrest2.position.set(-0.9, 0.2, 0);
+            armrest2.castShadow = true;
+            sofa.add(armrest2);
+
+            sofa.position.y = 0.25;
+
+            return sofa;
+        }
+
+        function createBench(data = {}) {
+            const bench = new THREE.Group();
+            bench.name = 'Bench';
+
+            const seat = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 0.5), new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8b4513 }));
+            seat.castShadow = true;
+            bench.add(seat);
+
+            const legGeometry = new THREE.BoxGeometry(0.1, 0.5, 0.1);
+            const legMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0x8b4513 });
+            const leg1 = new THREE.Mesh(legGeometry, legMaterial);
+            leg1.position.set(0.9, -0.25, 0.2);
+            bench.add(leg1);
+            const leg2 = new THREE.Mesh(legGeometry, legMaterial);
+            leg2.position.set(-0.9, -0.25, 0.2);
+            bench.add(leg2);
+            const leg3 = new THREE.Mesh(legGeometry, legMaterial);
+            leg3.position.set(0.9, -0.25, -0.2);
+            bench.add(leg3);
+            const leg4 = new THREE.Mesh(legGeometry, legMaterial);
+            leg4.position.set(-0.9, -0.25, -0.2);
+            bench.add(leg4);
+
+            bench.position.y = 0.25;
+
+            return bench;
+        }
+        
+        function createWall(data = {}) {
+            const wall = new THREE.Group();
+            wall.name = 'Wall';
+            
+            const wallGeometry = new THREE.BoxGeometry(5, 3, 0.1);
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0xdddddd });
+            const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
+            wallMesh.castShadow = true;
+            wall.add(wallMesh);
+            wall.position.y = 1.5;
+
+            return wall;
+        }
+
+        function createFloor(data = {}) {
+            const floor = new THREE.Group();
+            floor.name = 'Floor';
+            
+            const floorGeometry = new THREE.PlaneGeometry(5, 5);
+            const floorMaterial = new THREE.MeshStandardMaterial({ color: data.color ? new THREE.Color(data.color) : 0xcccccc });
+            const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
+            floorMesh.rotation.x = -Math.PI / 2;
+            floorMesh.receiveShadow = true;
+            floor.add(floorMesh);
+
+            return floor;
+        }
+
+
+        function addItemToScene(type, data = {}) {
+            let item;
+            switch (type) {
+                case 'shelf':
+                    item = createShelf(data);
+                    break;
+                case 'rack':
+                    item = createRack(data);
+                    break;
+                case 'counter':
+                    item = createCounter(data);
+                    break;
+                case 'mannequin':
+                    item = createMannequin(data);
+                    break;
+                case 'shirt':
+                    item = createShirt(data);
+                    break;
+                case 'laptop':
+                    item = createLaptop(data);
+                    break;
+                case 'table':
+                    item = createTable(data);
+                    break;
+                case 'chair':
+                    item = createChair(data);
+                    break;
+                case 'vase':
+                    item = createVase(data);
+                    break;
+                case 'television':
+                    item = createTelevision(data);
+                    break;
+                case 'perfume':
+                    item = createPerfume(data);
+                    break;
+                case 'beautyitem':
+                    item = createBeautyItem(data);
+                    break;
+                case 'pendantlight':
+                    item = createPendantLight(data);
+                    break;
+                case 'spotlight':
+                    item = createSpotlight(data);
+                    break;
+                case 'tracklight':
+                    item = createTrackLight(data);
+                    break;
+                case 'floorlamp':
+                    item = createFloorLamp(data);
+                    break;
+                case 'sofa':
+                    item = createSofa(data);
+                    break;
+                case 'bench':
+                    item = createBench(data);
+                    break;
+                case 'wall':
+                    item = createWall(data);
+                    break;
+                case 'floor':
+                    item = createFloor(data);
+                    break;
+                default:
+                    return;
+            }
+            // Give each object a unique ID and other metadata
+            item.userData.type = type;
+            item.userData.dbId = data.dbId || crypto.randomUUID();
+            
+            if (data.position) {
+                item.position.copy(data.position);
+            } else {
+                item.position.y = 0; // Place on the floor
+            }
+
+            if (data.scale) {
+                item.scale.copy(data.scale);
+            }
+            
+            if (data.rotation) {
+                item.rotation.copy(data.rotation);
+            }
+            
+            if (data.color) {
+                item.children.forEach(child => child.material.color.set(data.color));
+            }
+
+            objects.push(item);
+            scene.add(item);
+        }
+
+        function selectObject(object) {
+            if (selectedObject) {
+                selectedObject.children.forEach(child => child.material.emissive.setHex(0));
+            }
+            if (object) {
+                selectedObject = object;
+                selectedObject.children.forEach(child => child.material.emissive.setHex(0x0055ff));
+                objectInfoPanel.style.display = 'block';
+                selectedItemName.textContent = object.name;
+                colorPicker.value = '#' + object.children[0].material.color.getHexString();
+                scaleXSlider.value = object.scale.x;
+                scaleYSlider.value = object.scale.y;
+                rotationSlider.value = THREE.MathUtils.radToDeg(object.rotation.y);
+                posYSlider.value = object.position.y.toFixed(2);
+            } else {
+                selectedObject = null;
+                objectInfoPanel.style.display = 'none';
+            }
+        }
+        
+        async function deleteObject() {
+            if (!selectedObject) {
+                showToast("Select an item to delete.");
+                return;
+                }
+                // 1) Remove from the scene (and free GPU memory)
+                scene.remove(selectedObject);
+                selectedObject.traverse(obj => 
+            {
+               if (obj.isMesh) 
+               {
+                if (obj.geometry && obj.geometry.dispose) obj.geometry.dispose();
+              const mat = obj.material;
+             if (Array.isArray(mat)) 
+             {
+              mat.forEach(m => 
+              {
+             if (m.map && m.map.dispose) m.map.dispose();
+               if (m.dispose) m.dispose();
+              });
+               } else if (mat) {
+              if (mat.map && mat.map.dispose) mat.map.dispose();
+               if (mat.dispose) mat.dispose();
+                }
+               }
+               });
+               // 2) Remove from the local list
+             objects = objects.filter(o => o !== selectedObject);
+              // 3) Deselect UI
+               selectObject(null);
+              // 4) If you're editing a saved design, also sync Firestore
+               if (currentDesignDocId && db) {
+               try {
+               const designRef = doc(db, `/artifacts/${appId}/public/data/designs`, currentDesignDocId);
+               await updateDoc(designRef, { items: objects.map(serializeObject) });
+               } catch (e) {
+                 console.error("Failed to sync deletion:", e);
+                 }
+            }
+            showToast("Item deleted.");
+            }
+            function updateObjectPositionY() {
+            if (!selectedObject) return;
+            selectedObject.position.y = parseFloat(posYSlider.value);
+            syncDesignToFirestore();
+            }
+        // Update object properties from UI
+        function updateObjectProperties() {
+            if (!selectedObject) return;
+
+            // Update local object properties
+            const color = new THREE.Color(colorPicker.value);
+            selectedObject.children.forEach(child => child.material.color.set(color));
+
+            const scaleX = parseFloat(scaleXSlider.value);
+            const scaleY = parseFloat(scaleYSlider.value);
+            selectedObject.scale.set(scaleX, scaleY, 1);
+
+            const rotationY = THREE.MathUtils.degToRad(parseFloat(rotationSlider.value));
+            selectedObject.rotation.y = rotationY;
+            
+            // Sync with Firestore
+            syncDesignToFirestore();
+        }
+
+        function updateObjectTexture(textureName) {
+            if (!selectedObject) return;
+            const textureLoader = new THREE.TextureLoader();
+            const texture = textureLoader.load(textures[textureName]);
+            selectedObject.children.forEach(child => child.material.map = texture);
+            selectedObject.children.forEach(child => child.material.needsUpdate = true);
+            syncDesignToFirestore();
+        }
+
+        // Drag and Drop Logic
+        function onPointerDown(event) {
+            // Normalize mouse position
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(objects, true);
+            
+            if (intersects.length > 0) {
+                let intersectedObject = intersects[0].object;
+                while (intersectedObject.parent && intersectedObject.parent !== scene) {
+                    intersectedObject = intersectedObject.parent;
+                }
+                selectObject(intersectedObject);
+                controls.enabled = false;
+                isDragging = true;
+                
+                const intersectionPoint = new THREE.Vector3();
+                raycaster.ray.intersectPlane(dragPlane, intersectionPoint);
+                offset.copy(intersectionPoint).sub(intersectedObject.position);
+                canvas.style.cursor = 'grabbing';
+            } else {
+                selectObject(null);
+            }
+        }
+
+        function onPointerMove(event) {
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersectionPoint = new THREE.Vector3();
+                if (raycaster.ray.intersectPlane(dragPlane, intersectionPoint)) {
+                    selectedObject.position.copy(intersectionPoint.sub(offset));
+                    selectedObject.position.y = 0; // Keep the object on the floor
+                }
+            }
+        }
+
+        function onPointerUp(event) {
+            isDragging = false;
+            controls.enabled = true;
+            canvas.style.cursor = 'grab';
+            syncDesignToFirestore(); // Sync after a drag is complete
+        }
+
+        // Helper function to show a toast message
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Custom confirmation modal
+        function showConfirmationModal(message, onConfirm) {
+            const confirmHtml = `
+                <h3 class="text-xl font-bold mb-4">Confirm Action</h3>
+                <p class="text-gray-700 mb-4">${message}</p>
+                <div class="flex justify-center space-x-4">
+                    <button id="confirm-yes" class="py-2 px-6 bg-red-500 text-white rounded-lg hover:bg-red-600">Yes</button>
+                    <button id="confirm-no" class="py-2 px-6 bg-gray-300 rounded-lg hover:bg-gray-400">No</button>
+                </div>
+            `;
+            showModal(confirmHtml);
+
+            document.getElementById('confirm-yes').onclick = () => {
+                onConfirm();
+                hideModal();
+            };
+            document.getElementById('confirm-no').onclick = () => {
+                hideModal();
+            };
+        }
+
+        // Helper functions for modal
+        function showModal(contentHtml) {
+            modalBody.innerHTML = contentHtml;
+            modal.style.display = 'block';
+        }
+
+        function hideModal() {
+            modal.style.display = 'none';
+        }
+
+        closeBtn.onclick = hideModal;
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                hideModal();
+            }
+        };
+
+        // Firebase Functions
+        function serializeObject(obj) {
+            const data = {
+                dbId: obj.userData.dbId,
+                type: obj.userData.type,
+                position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+                rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
+                scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
+                color: '#' + obj.children[0].material.color.getHexString()
+            };
+            return data;
+        }
+
+        function deserializeObjects(items) {
+            // Clear existing scene objects first
+            objects.forEach(obj => scene.remove(obj));
+            objects = [];
+
+            items.forEach(itemData => {
+                addItemToScene(itemData.type, {
+                    dbId: itemData.dbId,
+                    position: new THREE.Vector3(itemData.position.x, itemData.position.y, itemData.position.z),
+                    rotation: new THREE.Euler(itemData.rotation.x, itemData.rotation.y, itemData.rotation.z),
+                    scale: new THREE.Vector3(itemData.scale.x, itemData.scale.y, itemData.scale.z),
+                    color: itemData.color
+                });
+            });
+            selectObject(null);
+            showToast("Design loaded successfully!");
+        }
+
+        async function saveDesign(name) {
+            if (!userId) {
+                showToast("User not authenticated. Please wait for authentication.");
+                return;
+            }
+
+            const designsRef = collection(db, `/artifacts/${appId}/public/data/designs`);
+            const designData = {
+                name: name,
+                userId: userId,
+                items: objects.map(serializeObject),
+                createdAt: serverTimestamp()
+            };
+
+            let docRef;
+            if (currentDesignDocId) {
+                docRef = doc(db, `/artifacts/${appId}/public/data/designs`, currentDesignDocId);
+                await setDoc(docRef, designData, { merge: true });
+                showToast("Design updated successfully!");
+            } else {
+                docRef = await addDoc(designsRef, designData);
+                currentDesignDocId = docRef.id;
+                showToast("New design saved successfully!");
+            }
+        }
+        
+        async function syncDesignToFirestore() {
+            if (!currentDesignDocId) return;
+            try {
+                const designRef = doc(db, `/artifacts/${appId}/public/data/designs`, currentDesignDocId);
+                const itemsData = objects.map(serializeObject);
+                await updateDoc(designRef, {
+                    items: itemsData
+                });
+            } catch (error) {
+                console.error("Error syncing to Firestore:", error);
+            }
+        }
+        
+        async function loadDesign(docId) {
+            try {
+                const designRef = doc(db, `/artifacts/${appId}/public/data/designs`, docId);
+                onSnapshot(designRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.data();
+                        currentDesignDocId = docId;
+                        deserializeObjects(data.items);
+                        showToast(`Now editing "${data.name}"`);
+                    } else {
+                        showToast("Design not found.");
+                    }
+                });
+            } catch (error) {
+                showToast("Error loading design.");
+                console.error("Error loading design:", error);
+            }
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Add items to scene
+            document.querySelectorAll('.add-item-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    addItemToScene(button.dataset.item);
+                    syncDesignToFirestore();
+                    showToast(`Added a new ${button.dataset.item}.`);
+                });
+            });
+
+            // Update selected object properties
+            colorPicker.addEventListener('change', updateObjectProperties);
+            scaleXSlider.addEventListener('input', updateObjectProperties);
+            scaleYSlider.addEventListener('input', updateObjectProperties);
+            rotationSlider.addEventListener('input', updateObjectProperties);
+            posYSlider.addEventListener('input', updateObjectPositionY);
+            deleteBtn.addEventListener('click', () => {
+                 showConfirmationModal("Are you sure you want to delete this item?", deleteObject);
+            });
+
+            textureBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    textureBtns.forEach(b => b.classList.remove('border-blue-500'));
+                    e.currentTarget.classList.add('border-blue-500');
+                    updateObjectTexture(e.currentTarget.dataset.texture);
+                });
+            });
+
+            // Save button
+            document.getElementById('save-btn').addEventListener('click', async () => {
+                const designName = prompt("Please enter a name for your design:");
+                if (designName) {
+                    await saveDesign(designName);
+                }
+            });
+
+            // Share button
+            document.getElementById('share-btn').addEventListener('click', () => {
+                if (!currentDesignDocId) {
+                    showToast("Please save your design first before sharing.");
+                    return;
+                }
+
+                const shareUrl = `${window.location.origin}?designId=${currentDesignDocId}`;
+                
+                const shareHtml = `
+                    <h3 class="text-xl font-bold mb-4">Share Your Design</h3>
+                    <p class="text-gray-700 mb-4">Copy the link below to share your custom store design!</p>
+                    <div class="bg-gray-200 p-3 rounded-lg flex items-center mb-4">
+                        <span id="share-link" class="truncate text-sm text-gray-700 flex-1">${shareUrl}</span>
+                        <button onclick="copyToClipboard('share-link')" class="ml-2 px-3 py-1 bg-gray-300 rounded-md text-gray-800 hover:bg-gray-400">Copy</button>
+                    </div>
+                `;
+                showModal(shareHtml);
+            });
+
+            // Render button
+            document.getElementById('render-btn').addEventListener('click', async () => {
+                showToast("Generating image of your design...");
+                const dataUrl = renderer.domElement.toDataURL("image/png");
+                const renderHtml = `
+                    <h3 class="text-xl font-bold mb-4">Your Design Render</h3>
+                    <img src="${dataUrl}" alt="3D Store Design" class="w-full h-auto rounded-lg shadow-md mb-4"/>
+                    <button id="download-render-btn" class="w-full py-2 px-4 bg-gray-800 text-white rounded-lg hover:bg-gray-700">Download Image</button>
+                `;
+                showModal(renderHtml);
+                document.getElementById('download-render-btn').onclick = () => {
+                    const link = document.createElement('a');
+                    link.download = 'store-design.png';
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                };
+            });
+
+            // Drag and drop events on canvas
+            canvas.addEventListener('pointerdown', onPointerDown, false);
+            canvas.addEventListener('pointermove', onPointerMove, false);
+            canvas.addEventListener('pointerup', onPointerUp, false);
+        }
+
+        // Helper function to copy text to clipboard
+        function copyToClipboard(elementId) {
+            const textToCopy = document.getElementById(elementId).textContent;
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast("Link copied to clipboard!");
+        }
+
+        // Start everything on page load
+        window.onload = function() {
+            init();
+            animate();
+        };
+
+    </script>
+</body>
+</html>

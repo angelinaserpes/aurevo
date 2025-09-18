@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aurevo - My Projects</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body class="antialiased">
+
+  <header class="fixed top-0 left-0 w-full z-50 py-4 px-8 flex justify-between items-center bg-transparent">
+    <div class="text-2xl md:text-3xl font-extrabold tracking-tight uppercase">Aurevo</div>
+    <nav class="hidden md:flex space-x-8">
+      <a href="index.html" class="hover:text-blue-400">Home</a>
+      <a href="about.html" class="hover:text-blue-400">About</a>
+      <a href="industry.html" class="hover:text-blue-400">Industries</a>
+      <a href="projects.html" class="hover:text-blue-400">My Projects</a>
+      <a href="designer.html" class="hover:text-blue-400">Designer</a>
+      <a href="vision.html" class="hover:text-blue-400">Aurevo Vision</a>
+      <a href="results.html" class="hover:text-blue-400">Results</a>
+      <a href="contact.html" class="hover:text-blue-400">Contact</a>
+    </nav>
+  </header>
+
+  <!-- My Projects -->
+  <section class="pt-24 pb-20 px-4 md:px-8">
+    <div class="max-w-6xl mx-auto">
+      <h2 class="text-4xl font-bold mb-8 text-center">My Projects</h2>
+
+      <!-- Filters + Sort (static UI stubs) -->
+      <div class="flex flex-col md:flex-row items-center justify-between mb-8 space-y-4 md:space-y-0">
+        <div class="flex space-x-2">
+          <button class="bg-blue-600 px-4 py-2 rounded-full text-sm font-semibold">All</button>
+          <button class="bg-gray-700 px-4 py-2 rounded-full text-sm font-semibold">Completed</button>
+          <button class="bg-gray-700 px-4 py-2 rounded-full text-sm font-semibold">In Progress</button>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-sm text-gray-400">Sort by:</span>
+          <select class="bg-gray-800 text-white rounded-md p-2 text-sm">
+            <option>Newest</option>
+            <option>Oldest</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 text-center">
+        <div class="card p-6 rounded-xl"><p class="text-2xl font-bold">0</p><p class="text-gray-400 text-sm">Total Projects</p></div>
+        <div class="card p-6 rounded-xl"><p class="text-2xl font-bold">0</p><p class="text-gray-400 text-sm">Completed</p></div>
+        <div class="card p-6 rounded-xl"><p class="text-2xl font-bold">0</p><p class="text-gray-400 text-sm">In Progress</p></div>
+        <div class="card p-6 rounded-xl"><p class="text-2xl font-bold">0</p><p class="text-gray-400 text-sm">Collaborators</p></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="card p-6 rounded-xl space-y-3">
+          <h3 class="text-xl font-semibold">No projects yet</h3>
+          <p class="text-gray-400 text-sm">Generate your first one in the Designer.</p>
+          <a href="designer.html" class="text-blue-400 underline">Open Designer →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="py-8 px-4 md:px-8 text-center text-gray-500">
+    <p>&copy; 2024 Aurevo. All rights reserved.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aurevo - Results</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css"/>
+  <script defer>
+    // tiny tabs handler
+    document.addEventListener('DOMContentLoaded', () => {
+      const map = { 'tab-layout':'results-layout', 'tab-specs':'results-specs', 'tab-boq':'results-boq' };
+      function activate(id){
+        Object.keys(map).forEach(k=>{
+          document.getElementById(k).classList.toggle('bg-blue-600', k===id);
+          document.getElementById(map[k]).classList.toggle('hidden', k!==id);
+        });
+      }
+      Object.keys(map).forEach(k=>{
+        document.getElementById(k)?.addEventListener('click', ()=>activate(k));
+      });
+      activate('tab-layout');
+    });
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</head>
+<body class="antialiased">
+
+  <header class="fixed top-0 left-0 w-full z-50 py-4 px-8 flex justify-between items-center bg-transparent">
+    <div class="text-2xl md:text-3xl font-extrabold tracking-tight uppercase">Aurevo</div>
+    <nav class="hidden md:flex space-x-8">
+      <a href="index.html" class="hover:text-blue-400">Home</a>
+      <a href="about.html" class="hover:text-blue-400">About</a>
+      <a href="industry.html" class="hover:text-blue-400">Industries</a>
+      <a href="projects.html" class="hover:text-blue-400">My Projects</a>
+      <a href="designer.html" class="hover:text-blue-400">Designer</a>
+      <a href="vision.html" class="hover:text-blue-400">Aurevo Vision</a>
+      <a href="results.html" class="hover:text-blue-400">Results</a>
+      <a href="contact.html" class="hover:text-blue-400">Contact</a>
+    </nav>
+  </header>
+
+  <!-- RESULTS (AI-Generated Store Designs → BOQ) -->
+  <section class="bg-[#0B0F1A] text-white pt-24 pb-16 px-4 md:px-8">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-8">
+        <h2 class="text-3xl md:text-4xl font-bold">AI-Generated Store Designs</h2>
+        <p class="mt-2 text-slate-400">Optimized layouts with specs and cost estimates.</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="max-w-4xl mx-auto mb-6">
+        <div class="rounded-full bg-[#0d1323] border border-slate-800 p-1 flex items-center gap-1">
+          <button id="tab-layout" class="flex-1 py-2 rounded-full text-sm font-medium">Layout Options</button>
+          <button id="tab-specs" class="flex-1 py-2 rounded-full text-sm font-medium">Specifications</button>
+          <button id="tab-boq" class="flex-1 py-2 rounded-full text-sm font-medium">Bill of Quantities</button>
+        </div>
+      </div>
+
+      <!-- Layout -->
+      <div id="results-layout" class="rounded-2xl border border-slate-800 bg-[#0d1323]/80 p-6">
+        <h3 class="text-xl font-semibold mb-4">Layout Options</h3>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="rounded-xl border border-slate-800 bg-[#0d1323]/80 p-4">
+            <div class="h-40 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg mb-3"></div>
+            <div class="font-semibold">Concept A</div>
+            <p class="text-sm text-slate-400">High flow efficiency.</p>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-[#0d1323]/80 p-4">
+            <div class="h-40 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg mb-3"></div>
+            <div class="font-semibold">Concept B</div>
+            <p class="text-sm text-slate-400">Max visibility.</p>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-[#0d1323]/80 p-4">
+            <div class="h-40 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg mb-3"></div>
+            <div class="font-semibold">Concept C</div>
+            <p class="text-sm text-slate-400">Balanced approach.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Specs -->
+      <div id="results-specs" class="hidden mt-6 rounded-2xl border border-slate-800 bg-[#0d1323]/80 p-6">
+        <h3 class="text-xl font-semibold mb-4">Technical Specifications</h3>
+        <div class="grid md:grid-cols-2 gap-8">
+          <div>
+            <div class="text-slate-300 font-medium mb-2">Structural Requirements</div>
+            <dl class="space-y-2 text-sm text-slate-300">
+              <div class="flex justify-between"><dt>Floor Load Capacity</dt><dd>150 PSF</dd></div>
+              <div class="flex justify-between"><dt>Ceiling Height</dt><dd>12 ft min</dd></div>
+              <div class="flex justify-between"><dt>HVAC Requirements</dt><dd>5 tons</dd></div>
+              <div class="flex justify-between"><dt>Electrical Load</dt><dd>200 Amp</dd></div>
+            </dl>
+          </div>
+          <div>
+            <div class="text-slate-300 font-medium mb-2">Compliance Standards</div>
+            <ul class="space-y-2 text-sm text-slate-300">
+              <li>ADA Accessibility</li>
+              <li>Fire Safety Code</li>
+              <li>Building Code Compliance</li>
+              <li>Health Department Standards</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOQ -->
+      <div id="results-boq" class="hidden mt-6 rounded-2xl border border-slate-800 bg-[#0d1323]/80 p-6">
+        <h3 class="text-xl font-semibold mb-4">Bill of Quantities</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-left text-slate-300">
+              <tr class="border-b border-slate-800">
+                <th class="py-2 pr-4">Section</th>
+                <th class="py-2 pr-4">Description</th>
+                <th class="py-2 pr-4">Qty</th>
+                <th class="py-2 pr-4">Unit</th>
+                <th class="py-2 pr-4">Unit Price</th>
+                <th class="py-2">Total</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-300">
+              <tr class="border-b border-slate-900/40">
+                <td class="py-2 pr-4 text-blue-400">Construction</td>
+                <td class="py-2 pr-4">Flooring installation</td>
+                <td class="py-2 pr-4">1000</td>
+                <td class="py-2 pr-4">sq ft</td>
+                <td class="py-2 pr-4">$35.00</td>
+                <td class="py-2">$35,000.00</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="border-t border-slate-800">
+                <td colspan="5" class="text-right py-3 pr-4 font-semibold">Total</td>
+                <td class="py-3 font-semibold">$35,000.00</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="py-8 px-4 md:px-8 text-center text-gray-500">
+    <p>&copy; 2024 Aurevo. All rights reserved.</p>
+  </footer>
+</body>
+</html>

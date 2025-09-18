@@ -1,0 +1,15 @@
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', sans-serif; background:#000; color:#fff; overflow-x:hidden; }
+.dark-blue-gradient { background: linear-gradient(135deg,#1A202C,#000033); }
+.hero-bg {
+  background-image: linear-gradient(rgba(0,0,0,.7), rgba(0,0,0,.7)),
+   url('https://images.unsplash.com/photo-1490467265959-2156888e8fe7?q=80&w=1286&auto=format&fit=crop');
+  background-size: cover; background-position: center;
+}
+.card {
+  background: rgba(26,32,44,.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(45,55,72,.5);
+  box-shadow: 0 4px 6px rgba(0,0,0,.1);
+}
+.brand-serif{ font-family:'Cinzel',serif; letter-spacing:.08em; font-weight:700; text-transform:uppercase; }

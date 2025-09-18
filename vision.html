@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Store Image Designer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+<body class="font-sans antialiased flex flex-col h-screen bg-[var(--bg)] text-[var(--text)]">
+
+  <header class="fixed top-0 left-0 w-full z-50 py-4 px-8 flex justify-between items-center bg-transparent">
+    <div class="text-2xl md:text-3xl font-extrabold tracking-tight uppercase">Aurevo</div>
+    <nav class="hidden md:flex space-x-8">
+      <a href="index.html" class="hover:text-blue-400">Home</a>
+      <a href="about.html" class="hover:text-blue-400">About</a>
+      <a href="industry.html" class="hover:text-blue-400">Industries</a>
+      <a href="projects.html" class="hover:text-blue-400">My Projects</a>
+      <a href="designer.html" class="hover:text-blue-400">Designer</a>
+      <a href="vision.html" class="hover:text-blue-400">Aurevo Vision</a>
+      <a href="results.html" class="hover:text-blue-400">Results</a>
+      <a href="contact.html" class="hover:text-blue-400">Contact</a>
+    </nav>
+  </header>
+
+  <style>
+    :root{
+      --bg:#000000;           /* true black */
+      --panel:#0f172aee;      /* dark slate panel */
+      --panel-border:#1f2a44; /* subtle border */
+      --muted:#94a3b8;        /* helper text */
+      --text:#e5e7eb;         /* body text */
+      --heading:#ffffff;      /* headings */
+    }
+    /* Brand gradient like the screenshot */
+    .accent-gradient{
+      background: linear-gradient(90deg,#60a5fa,#3b82f6);
+      -webkit-background-clip:text;
+      background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    body{ font-family:'Inter',sans-serif; }
+  </style>
+
+  <script>
+  // 👇 replace with your real values from Firebase console
+  window.__app_id = 'ai-store-image-designer'; 
+  window.__firebase_config = JSON.stringify({
+    apiKey: "YOUR_FIREBASE_API_KEY",
+    authDomain: "your-app.firebaseapp.com",
+    projectId: "your-app",
+    storageBucket: "your-app.appspot.com",
+    messagingSenderId: "000000000000",
+    appId: "1:000000000000:web:abcdef",
+  });
+  // if you don’t use custom tokens, leave this null
+  window.__initial_auth_token = null;
+</script>
+
+  <script type="module">
+    
+    // Firebase imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Global variables provided by the environment
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+    // Toast
+    const showMessage = (message, isError=false)=>{
+      const modal = document.getElementById('messageModal');
+      const messageText = document.getElementById('messageText');
+      messageText.textContent = message;
+      modal.classList.remove('hidden');
+      modal.classList.add(isError ? 'bg-red-500' : 'bg-blue-500');
+      modal.classList.remove(isError ? 'bg-blue-500' : 'bg-red-500');
+      setTimeout(()=>modal.classList.add('hidden'),3000);
+    };
+
+    // Firebase state
+    let app, db, auth, userId=null, currentDocId=null;
+
+    // Generate image
+const generateImage = async () => {
+  const prompt = document.getElementById('promptInput').value;
+  const statusDiv = document.getElementById('statusMessage');
+  const imageDisplay = document.getElementById('imageDisplay');
+  if (!prompt) { showMessage("Please enter a description for your store.", true); return; }
+
+  statusDiv.textContent = 'Generating image...';
+  document.getElementById('loadingSpinner').classList.remove('hidden');
+  imageDisplay.src = '';
+
+  // Payload for Gemini Imagen model
+  const payload = {
+    instances: [
+      { prompt: `A high-quality, professional, realistic architectural render of an interior store layout, based on this description: ${prompt}` }
+    ],
+    parameters: { sampleCount: 1 }
+  };
+
+  // (1) Put your Gemini API key from Google AI Studio here:
+  const GEMINI_API_KEY = "AIzaSyBEXAMPLEEXAMPLE1234567890";
+
+
+  // (2) Official REST call with API key in the header:
+  const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict";
+
+  try {
+    const resp = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const result = await resp.json();
+
+    // Parse image
+    const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
+    if (!base64Data) throw new Error("No image data returned.");
+    const imageUrl = `data:image/png;base64,${base64Data}`;
+    imageDisplay.src = imageUrl;
+
+    // Save to Firestore
+    const docId = `store-${Date.now()}`;
+    const docRef = doc(db, `artifacts/${appId}/public/data/storeDesigns`, docId);
+    await setDoc(docRef, {
+      prompt,
+      imageData: base64Data,
+      timestamp: new Date().toISOString(),
+      ownerId: userId
+    });
+    currentDocId = docId;
+
+    const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?id=${currentDocId}`;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+    showMessage("Store image generated successfully!");
+  } catch (err) {
+    console.error(err);
+    showMessage("Failed to generate store image. Please try again.", true);
+  } finally {
+    statusDiv.textContent = '';
+    document.getElementById('loadingSpinner').classList.add('hidden');
+  }
+};
+
+    const loadStore = async (docId)=>{
+      document.getElementById('loadingSpinner').classList.remove('hidden');
+      document.getElementById('statusMessage').textContent = `Loading collaboration session for ${docId}...`;
+      try{
+        const docRef = doc(db, `artifacts/${appId}/public/data/storeDesigns`, docId);
+        onSnapshot(docRef,(snap)=>{
+          if(snap.exists()){
+            const data = snap.data();
+            document.getElementById('promptInput').value = data.prompt ?? '';
+            document.getElementById('imageDisplay').src = `data:image/png;base64,${data.imageData}`;
+            document.getElementById('statusMessage').textContent = 'Live collaboration session active.';
+            document.getElementById('collaborators').classList.remove('hidden');
+          }else{
+            showMessage("No collaboration session found with that ID.", true);
+            document.getElementById('statusMessage').textContent = '';
+            document.getElementById('collaborators').classList.add('hidden');
+          }
+          document.getElementById('loadingSpinner').classList.add('hidden');
+        },(error)=>{
+          console.error(error);
+          showMessage("Error listening to collaboration session.", true);
+          document.getElementById('loadingSpinner').classList.add('hidden');
+          document.getElementById('statusMessage').textContent = '';
+        });
+        currentDocId = docId;
+      }catch(e){
+        console.error(e);
+        showMessage("Failed to load collaboration session.", true);
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('statusMessage').textContent = '';
+      }
+    };
+
+    const handleShare = ()=>{
+      if(!currentDocId){ showMessage("Please generate a design first to get a shareable link.", true); return; }
+      const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?id=${currentDocId}`;
+      navigator.clipboard.writeText(shareUrl).then(()=>showMessage("Shareable link copied to clipboard!"))
+        .catch(()=>showMessage("Failed to copy link. Please copy it manually.", true));
+    };
+
+    const handleCollaborate = ()=>{
+      if(!currentDocId){ showMessage("Please generate a design first to create a collaboration session.", true); return; }
+      const collabUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?id=${currentDocId}`;
+      showMessage(`Share this link to collaborate: ${collabUrl}`);
+      document.getElementById('collaborators').classList.remove('hidden');
+      document.getElementById('collaboratorInfo').textContent = `User ID: ${userId}`;
+    };
+
+    window.onload = async ()=>{
+      if(Object.keys(firebaseConfig).length > 0){
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        setLogLevel('debug');
+      }else{
+        console.error("Firebase config is missing.");
+        showMessage("Firebase is not configured. Sharing and collaboration will not work.", true);
+        return;
+      }
+
+      onAuthStateChanged(auth, async (user)=>{
+        userId = user ? user.uid : crypto.randomUUID();
+        const urlParams = new URLSearchParams(window.location.search);
+        const docIdFromUrl = urlParams.get('id');
+        if(docIdFromUrl) loadStore(docIdFromUrl);
+      });
+
+      if(initialAuthToken){
+        try{ await signInWithCustomToken(auth, initialAuthToken); }
+        catch(e){ console.error(e); await signInAnonymously(auth); }
+      }else{
+        await signInAnonymously(auth);
+      }
+
+      // Hook up buttons
+      document.getElementById('generateBtn').addEventListener('click', generateImage);
+      document.getElementById('shareBtn').addEventListener('click', handleShare);
+      document.getElementById('collabBtn').addEventListener('click', handleCollaborate);
+    };
+  </script>
+</head>
+
+  <!-- Header / Hero -->
+ <header class="p-4 z-10 bg-transparent">
+  <section class="container mx-auto mt-10 max-w-3xl px-4">
+    <h1 class="text-5xl md:text-6xl font-extrabold leading-tight text-[var(--heading)]">
+      AI Image Generation 
+    </h1>
+  </section>
+</header>
+
+
+  <!-- Main Content Area -->
+  <main class="flex-1 flex flex-col md:flex-row p-6 space-y-4 md:space-y-0 md:space-x-6">
+    <!-- Left Panel: Controls -->
+    <div class="rounded-2xl shadow-xl p-6 md:w-1/3 flex flex-col space-y-6 bg-[var(--panel)] border border-[var(--panel-border)]">
+      <h2 class="text-2xl font-semibold text-[var(--heading)]">Design a Store</h2>
+      <p class="text-sm text-[var(--muted)]">Describe the store you want to create. The AI will generate a realistic image of the layout.</p>
+
+      <!-- Prompt Input -->
+      <div class="flex-1">
+        <label for="promptInput" class="block text-[var(--text)] font-medium mb-2">Store Description:</label>
+        <textarea id="promptInput" rows="6"
+          class="w-full p-3 rounded-lg border border-slate-700 bg-slate-900/70 text-[var(--text)] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+          placeholder="e.g., A modern bakery with a minimalist design, a large display case, and a few small tables."></textarea>
+      </div>
+
+      <!-- Action Buttons -->
+<div class="mt-auto space-y-4">
+  <!-- Generate button (full width, longer) -->
+  <button id="generateBtn"
+    class="w-full px-8 py-3 bg-blue-600 text-white rounded-lg font-bold shadow-lg hover:bg-blue-500 transition-colors">
+    Generate
+  </button>
+
+  <!-- Share / Collaborate row -->
+  <div class="flex space-x-4">
+    <button id="shareBtn"
+      class="flex-1 px-4 py-2 rounded-lg font-bold shadow-md bg-slate-800 text-slate-200 hover:bg-slate-700 transition-colors">
+      Share
+    </button>
+    <button id="collabBtn"
+      class="flex-1 px-4 py-2 rounded-lg font-bold shadow-md bg-slate-800 text-slate-200 hover:bg-slate-700 transition-colors">
+      Collaborate
+    </button>
+  </div>
+</div>
+
+
+      <!-- Status & Loading -->
+      <div id="statusArea" class="mt-4 text-center">
+        <div id="loadingSpinner" class="hidden animate-spin rounded-full h-8 w-8 border-4 border-t-blue-600 mx-auto"></div>
+        <p id="statusMessage" class="mt-2 text-sm text-[var(--muted)]"></p>
+      </div>
+
+      <!-- Collaborators Info -->
+      <div id="collaborators" class="hidden mt-4 text-sm text-center bg-slate-900/40 p-2 rounded-lg border border-[var(--panel-border)]">
+        <p class="font-semibold text-[var(--heading)]">Collaboration Active</p>
+        <p id="collaboratorInfo" class="text-[var(--muted)]"></p>
+      </div>
+    </div>
+
+    <!-- Right Panel: Image Display -->
+    <div class="rounded-2xl shadow-xl flex-1 flex flex-col bg-[var(--panel)] border border-[var(--panel-border)]">
+      <div class="p-4 rounded-t-lg bg-transparent">
+        <h3 class="text-xl font-semibold text-[var(--heading)]">Image Preview</h3>
+        <p class="text-sm text-[var(--muted)]">The generated image will appear here.</p>
+      </div>
+      <div class="flex-1 p-2 flex items-center justify-center bg-black/30">
+        <img id="imageDisplay" src="" alt="Generated store layout" class="max-w-full max-h-full rounded-lg shadow-inner object-contain">
+      </div>
+    </div>
+  </main>
+
+  <!-- Message Modal -->
+  <div id="messageModal" class="hidden fixed bottom-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300">
+    <p id="messageText"></p>
+  </div>
+</body>
+</html>
+

@@ -6,6 +6,8 @@
   <title>AI Store Image Designer</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
+
+</head>
 <body class="font-sans antialiased flex flex-col h-screen bg-[var(--bg)] text-[var(--text)]">
 
   <header class="fixed top-0 left-0 w-full z-50 py-4 px-8 flex justify-between items-center bg-transparent">
@@ -86,62 +88,48 @@
 
     // Generate image
 const generateImage = async () => {
-  const prompt = document.getElementById('promptInput').value;
+  const promptRaw = document.getElementById('promptInput').value.trim();
   const statusDiv = document.getElementById('statusMessage');
   const imageDisplay = document.getElementById('imageDisplay');
-  if (!prompt) { showMessage("Please enter a description for your store.", true); return; }
+  if (!promptRaw) { showMessage("Please enter a description for your store.", true); return; }
+
+  const prompt = `A high-quality, professional, realistic architectural render of an interior store layout, based on this description: ${promptRaw}`;
 
   statusDiv.textContent = 'Generating image...';
   document.getElementById('loadingSpinner').classList.remove('hidden');
   imageDisplay.src = '';
 
-  // Payload for Gemini Imagen model
-  const payload = {
-    instances: [
-      { prompt: `A high-quality, professional, realistic architectural render of an interior store layout, based on this description: ${prompt}` }
-    ],
-    parameters: { sampleCount: 1 }
-  };
-
-  // (1) Put your Gemini API key from Google AI Studio here:
-  const GEMINI_API_KEY = "AIzaSyBEXAMPLEEXAMPLE1234567890";
-
-
-  // (2) Official REST call with API key in the header:
-  const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict";
-
   try {
-    const resp = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY
-      },
-      body: JSON.stringify(payload)
+    // ✅ Call your own backend on Vercel (same-origin)
+    const resp = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, sampleCount: 1 })
     });
 
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const result = await resp.json();
+    const data = await resp.json();
+    if (!resp.ok || !data.imageBase64) throw new Error(data.error || 'No image returned');
 
-    // Parse image
-    const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
-    if (!base64Data) throw new Error("No image data returned.");
-    const imageUrl = `data:image/png;base64,${base64Data}`;
+    // Show the image
+    const imageUrl = `data:image/png;base64,${data.imageBase64}`;
     imageDisplay.src = imageUrl;
 
-    // Save to Firestore
-    const docId = `store-${Date.now()}`;
-    const docRef = doc(db, `artifacts/${appId}/public/data/storeDesigns`, docId);
-    await setDoc(docRef, {
-      prompt,
-      imageData: base64Data,
-      timestamp: new Date().toISOString(),
-      ownerId: userId
-    });
-    currentDocId = docId;
+    // Save to Firestore only if Firebase was initialized
+    if (db) {
+      const docId = `store-${Date.now()}`;
+      const docRef = doc(db, `artifacts/${appId}/public/data/storeDesigns`, docId);
+      await setDoc(docRef, {
+        prompt: promptRaw,
+        imageData: data.imageBase64,
+        timestamp: new Date().toISOString(),
+        ownerId: userId
+      });
+      currentDocId = docId;
 
-    const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?id=${currentDocId}`;
-    window.history.pushState({ path: newUrl }, '', newUrl);
+      const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?id=${currentDocId}`;
+      window.history.pushState({ path: newUrl }, '', newUrl);
+    }
+
     showMessage("Store image generated successfully!");
   } catch (err) {
     console.error(err);
@@ -151,6 +139,9 @@ const generateImage = async () => {
     document.getElementById('loadingSpinner').classList.add('hidden');
   }
 };
+
+
+
 
     const loadStore = async (docId)=>{
       document.getElementById('loadingSpinner').classList.remove('hidden');
@@ -200,40 +191,54 @@ const generateImage = async () => {
       document.getElementById('collaboratorInfo').textContent = `User ID: ${userId}`;
     };
 
-    window.onload = async ()=>{
-      if(Object.keys(firebaseConfig).length > 0){
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-        setLogLevel('debug');
-      }else{
-        console.error("Firebase config is missing.");
-        showMessage("Firebase is not configured. Sharing and collaboration will not work.", true);
-        return;
-      }
+    window.onload = async () => {
+  // Always wire up buttons first
+  document.getElementById('generateBtn').addEventListener('click', generateImage);
+  document.getElementById('shareBtn').addEventListener('click', handleShare);
+  document.getElementById('collabBtn').addEventListener('click', handleCollaborate);
 
-      onAuthStateChanged(auth, async (user)=>{
+  // Try to init Firebase if it looks real; otherwise skip gracefully
+  try {
+    const looksConfigured =
+      firebaseConfig &&
+      typeof firebaseConfig === 'object' &&
+      firebaseConfig.apiKey &&
+      !String(firebaseConfig.apiKey).includes('YOUR_') &&
+      firebaseConfig.projectId &&
+      firebaseConfig.projectId !== 'your-app';
+
+    if (looksConfigured) {
+      app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      auth = getAuth(app);
+      setLogLevel('debug');
+
+      onAuthStateChanged(auth, async (user) => {
         userId = user ? user.uid : crypto.randomUUID();
         const urlParams = new URLSearchParams(window.location.search);
         const docIdFromUrl = urlParams.get('id');
-        if(docIdFromUrl) loadStore(docIdFromUrl);
+        if (docIdFromUrl) loadStore(docIdFromUrl);
       });
 
-      if(initialAuthToken){
-        try{ await signInWithCustomToken(auth, initialAuthToken); }
-        catch(e){ console.error(e); await signInAnonymously(auth); }
-      }else{
+      if (initialAuthToken) {
+        try { await signInWithCustomToken(auth, initialAuthToken); }
+        catch (e) { console.error(e); await signInAnonymously(auth); }
+      } else {
         await signInAnonymously(auth);
       }
+    } else {
+      console.warn('Firebase not configured — collaboration/sharing disabled.');
+      showMessage("Firebase not configured — generation still works.", false);
+      userId = crypto.randomUUID(); // still have an ID for session UI
+    }
+  } catch (e) {
+    console.error('Firebase init failed; proceeding without it.', e);
+    showMessage("Collaboration disabled; image generation still works.", true);
+    userId = crypto.randomUUID();
+  }
+};
 
-      // Hook up buttons
-      document.getElementById('generateBtn').addEventListener('click', generateImage);
-      document.getElementById('shareBtn').addEventListener('click', handleShare);
-      document.getElementById('collabBtn').addEventListener('click', handleCollaborate);
-    };
   </script>
-</head>
-
   <!-- Header / Hero -->
  <header class="p-4 z-10 bg-transparent">
   <section class="container mx-auto mt-10 max-w-3xl px-4">
@@ -312,4 +317,3 @@ const generateImage = async () => {
   </div>
 </body>
 </html>
-

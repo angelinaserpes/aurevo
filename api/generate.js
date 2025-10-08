@@ -1,20 +1,14 @@
-export const config = { runtime: 'edge' }; // fast, runs on Vercel Edge
-
-export default async function handler(req) {
+export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
-      return new Response(JSON.stringify({error:'Method not allowed'}), { status: 405 });
+      return res.status(405).json({ error: 'Method not allowed' });
     }
-    const { prompt, sampleCount = 1, aspectRatio, imageSize } = await req.json();
 
-    if (!prompt) {
-      return new Response(JSON.stringify({error:'Missing prompt'}), { status: 400 });
-    }
+    const { prompt, sampleCount = 1, aspectRatio, imageSize } = req.body || {};
+    if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return new Response(JSON.stringify({error:'Server missing GEMINI_API_KEY'}), { status: 500 });
-    }
+    if (!apiKey) return res.status(500).json({ error: 'Server missing GEMINI_API_KEY' });
 
     const body = {
       instances: [{ prompt }],
@@ -39,21 +33,15 @@ export default async function handler(req) {
 
     if (!resp.ok) {
       const text = await resp.text();
-      return new Response(JSON.stringify({error:`Upstream error ${resp.status}: ${text}`}), { status: 502 });
+      return res.status(502).json({ error: `Upstream error ${resp.status}: ${text}` });
     }
 
     const data = await resp.json();
-    // Imagen returns base64 bytes at predictions[0].bytesBase64Encoded
     const base64 = data?.predictions?.[0]?.bytesBase64Encoded;
-    if (!base64) {
-      return new Response(JSON.stringify({error:'No image bytes returned'}), { status: 500 });
-    }
+    if (!base64) return res.status(500).json({ error: 'No image bytes returned' });
 
-    return new Response(JSON.stringify({ imageBase64: base64 }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(200).json({ imageBase64: base64 });
   } catch (e) {
-    return new Response(JSON.stringify({error: e.message}), { status: 500 });
+    return res.status(500).json({ error: e.message || 'Unexpected server error' });
   }
 }

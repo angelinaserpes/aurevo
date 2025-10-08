@@ -1,9 +1,9 @@
 // /api/generate.js
-const VERSION = 'gen-v4-node-no-response-format';
+const VERSION = 'gen-v5-node';
 
 export default async function handler(req, res) {
   try {
-    // GET diag: open /api/generate in the browser
+    // GET diagnostics so we can see what's live
     if (req.method === 'GET') {
       return res.status(200).json({
         ok: true,
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed', version: VERSION });
     }
 
-    // Safe body parse even if bodyParser is off
+    // Robust body parse (works even if bodyParser is off)
     let payload = {};
     if (req.body && typeof req.body === 'object') {
       payload = req.body;
@@ -33,19 +33,23 @@ export default async function handler(req, res) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'Server missing OPENAI_API_KEY', version: VERSION });
 
-    // Call OpenAI Images (no response_format param)
+    // Call OpenAI Images (NO response_format param)
     const r = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'gpt-image-1', prompt, n: 1, size })
     });
 
-    const txt = await r.text(); // keep original text for diagnostics
+    const txt = await r.text(); // capture raw body for logging
     if (!r.ok) {
+      // Log upstream error to Vercel function logs so we can see it
+      console.error('OpenAI upstream error:', r.status, txt);
       return res.status(502).json({ error: `OpenAI error ${r.status}: ${txt}`, version: VERSION });
     }
 
-    let out; try { out = JSON.parse(txt); } catch {
+    let out;
+    try { out = JSON.parse(txt); } catch {
+      console.error('OpenAI returned non-JSON:', txt);
       return res.status(502).json({ error: 'OpenAI returned non-JSON response', version: VERSION });
     }
 
@@ -55,12 +59,19 @@ export default async function handler(req, res) {
     // Fallback if API returns a URL
     if (!b64 && datum.url) {
       const imgResp = await fetch(datum.url);
-      if (!imgResp.ok) return res.status(502).json({ error: `Image fetch failed: ${imgResp.status}`, version: VERSION });
+      if (!imgResp.ok) {
+        console.error('Image fetch failed:', imgResp.status);
+        return res.status(502).json({ error: `Image fetch failed: ${imgResp.status}`, version: VERSION });
+      }
       const buf = Buffer.from(await imgResp.arrayBuffer());
       b64 = buf.toString('base64');
     }
 
-    if (!b64) return res.status(500).json({ error: 'No image returned', version: VERSION });
+    if (!b64) {
+      console.error('No image returned payload:', JSON.stringify(out).slice(0, 500));
+      return res.status(500).json({ error: 'No image returned', version: VERSION });
+    }
+
     return res.status(200).json({ imageBase64: b64, version: VERSION });
   } catch (e) {
     console.error('Generate crashed:', e);
